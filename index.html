@@ -64,6 +64,7 @@
         let level = 1;
         let gameActive = false;
         let timer;
+        let activeCells = [];
         
         // DOM elements
         const introScreen = document.getElementById('intro-screen');
@@ -86,6 +87,7 @@
             timeLeft = 60;
             level = 1;
             gameActive = true;
+            activeCells = [];
             
             // Update displays
             scoreDisplay.textContent = score;
@@ -108,18 +110,17 @@
                 }
             }, 1000);
             
-            // Generate initial grid
-            generateGrid();
+            // Start generating cells
+            generateCells();
         }
         
-        function generateGrid() {
+        function generateCells() {
             // Clear grid
             gridContainer.innerHTML = '';
             
             // Size depends on level
             const gridSize = 4 + Math.floor(level / 2);
             const gridArea = gridSize * gridSize;
-            const activeCells = Math.min(3 + level, gridArea);
             
             // Create cells
             const cells = [];
@@ -140,61 +141,46 @@
                     score += level;
                     scoreDisplay.textContent = score;
                     
-                    // Random message
-                    const messages = [
-                        "Dostęp przyznany!", 
-                        "Hasło złamane!", 
-                        "Firewall pominięty!", 
-                        "Dane przechwycone!",
-                        "System zhakowany!"
-                    ];
-                    messageDisplay.textContent = messages[Math.floor(Math.random() * messages.length)];
+                    // Remove from active cells
+                    activeCells = activeCells.filter(c => c !== cell);
                     
                     // Check if all cells clicked
-                    if (document.querySelectorAll('[data-active="true"]').length === 0) {
+                    if (activeCells.length === 0) {
                         levelUp();
                     }
                 });
                 
                 gridContainer.appendChild(cell);
                 cells.push(cell);
-                
-                // Adjust grid
-                gridContainer.className = `grid grid-cols-${gridSize} gap-2 mb-4`;
             }
             
             // Activate random cells
-            const shuffled = cells.sort(() => 0.5 - Math.random());
-            for (let i = 0; i < activeCells; i++) {
-                shuffled[i].dataset.active = 'true';
-                shuffled[i].classList.add('active', 'bg-green-700');
+            const activateCount = Math.min(3, Math.floor(Math.random() * 3) + 1);
+            for (let i = 0; i < activateCount; i++) {
+                const randomIndex = Math.floor(Math.random() * cells.length);
+                const cell = cells[randomIndex];
+                
+                if (cell.dataset.active === 'false') {
+                    cell.dataset.active = 'true';
+                    cell.classList.add('active', 'bg-green-700');
+                    activeCells.push(cell);
+                    
+                    // Start shrinking and disappearing
+                    setTimeout(() => {
+                        if (cell.dataset.active === 'true') {
+                            cell.dataset.active = 'false';
+                            cell.classList.remove('active');
+                            cell.classList.add('bg-red-900');
+                            endGame(); // End game if not clicked
+                        }
+                    }, 2000); // Time before cell disappears
+                }
             }
             
-            // Set timeout for cells to deactivate
-            const cellTimeout = 2000 - (level * 100);
+            // Set timeout for next cell generation
             setTimeout(() => {
-                if (!gameActive) return;
-                
-                document.querySelectorAll('[data-active="true"]').forEach(cell => {
-                    cell.dataset.active = 'false';
-                    cell.classList.remove('active');
-                    cell.classList.add('bg-red-900');
-                    
-                    // Punish for missed cells
-                    score = Math.max(0, score - level);
-                    scoreDisplay.textContent = score;
-                });
-                
-                // Show fail message if all cells missed
-                if (document.querySelectorAll('[data-active="false"]').every(cell => cell.classList.contains('bg-red-900'))) {
-                    messageDisplay.textContent = "Przegapione cele! Szybciej!";
-                }
-                
-                // Generate new grid after delay
-                setTimeout(() => {
-                    if (gameActive) generateGrid();
-                }, 1000);
-            }, cellTimeout);
+                if (gameActive) generateCells();
+            }, 1500); // Delay before generating next cell
         }
         
         function levelUp() {
@@ -203,7 +189,7 @@
             messageDisplay.textContent = `Poziom ${level}!`;
             
             setTimeout(() => {
-                if (gameActive) generateGrid();
+                if (gameActive) generateCells();
             }, 1000);
         }
         
